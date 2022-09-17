@@ -16,8 +16,9 @@
 // https://ru.wikipedia.org/wiki/%D0%A1%D1%80%D0%B0%D0%B2%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5_%D1%86%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D1%85_%D0%B0%D1%83%D0%B4%D0%B8%D0%BE%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%82%D0%BE%D0%B2
 //=====================================================
 #include"DSD.h"
+#ifdef _DEBUG
 extern FILE *debugfile;
-
+#endif
 #ifndef _fseeki64
     #define _fseeki64 fseek
 #endif // _fseeki64
@@ -56,7 +57,9 @@ int Read16(__int16 *a,FILE *f){
 	return 2;
 }
 int tDSD::start_DSD(void){
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start DSD (Sony)\n");fflush(debugfile);}
+#endif
 	//-------------------------------------- DSD chunk
 	if(fread(&NAME,1,4,f)!=4)return 1;
 	if(NAME!=' DSD')return 1;
@@ -110,14 +113,15 @@ int tDSD::start_DSD(void){
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
 	Channels=Sony_Channels;
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Sony_Channels=%i\n",Sony_Channels);fflush(debugfile);}
-
+#endif
 	if(fread(&SampleRate,1,4,f)!=4)return 1;
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"SampleRate=%i\n",SampleRate);fflush(debugfile);}
-
-
+#endif
 	if(fread(&Sony_BPS,1,4,f)!=4)return 1;
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
@@ -125,19 +129,21 @@ int tDSD::start_DSD(void){
 	if(Sony_BPS==1)LSB_first=true;
 	else if(Sony_BPS==8)MSB_first=true;
 	else return 1; //One bit only
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"BPS=%i\n",Sony_BPS);fflush(debugfile);}
-
+#endif
 	if(fread(&Samples,1,8,f)!=8)return 1;
 	if((LocalSize-=8)<0)return 1;
 	if((GlobalSize-=8)<0)return 1;
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Samples=%llu\n",Samples);fflush(debugfile);}
-
-
+#endif
 	if(fread(&BlockSize,1,4,f)!=4)return 1;
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"BlockSize=%i\n",BlockSize);fflush(debugfile);}
-
+#endif
 	unsigned __int32 Temp32;
 	if(fread(&Temp32,1,4,f)!=4)return 1;
 	if((LocalSize-=4)<0)return 1;
@@ -191,7 +197,9 @@ int tDSD::start_DSD(void){
 
 
 	//-------------------------------------- finish
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Finish DSD (Sony)\n");fflush(debugfile);}
+#endif
 	return 0;
 }
 int tDSD::start_FRM8(void){//Phillips format (fill it later)
@@ -214,10 +222,12 @@ int tDSD::start_FRM8(void){//Phillips format (fill it later)
 		if(GlobalSize==0)break;//Good finish
 		if(fread(&NAME,1,4,f)!=4)return 0;GlobalSize-=4;
 		if(Read64(&LocalSize,f)!=8)return 0;GlobalSize-=8;
+#ifdef _DEBUG
 		if(debugfile){fwrite(&NAME,1,4,debugfile);fflush(debugfile);}
 		if(debugfile){fprintf(debugfile,"\n");fflush(debugfile);}
 		if(debugfile){fprintf(debugfile,"Global Size = %i\n",GlobalSize);fflush(debugfile);}
 		if(debugfile){fprintf(debugfile,"Local Size = %i\n",LocalSize);fflush(debugfile);}
+#endif
 		if((GlobalSize-=LocalSize)<0)return 0;//Too large chunk
 		switch(NAME){
 			case 'REVF':
@@ -313,7 +323,9 @@ int tDSD::start_FRM8(void){//Phillips format (fill it later)
 		}
 
 	}
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Good Finish of DFF file :)\n");fflush(debugfile);}
+#endif
 	return 0;
 }
 int tDSD::start(FILE *infile){// Sony or Phillips
@@ -343,7 +355,9 @@ int tDSD::start(FILE *infile){// Sony or Phillips
 		//-------------------------------------- buffer data
 		bufersize=BlockSize*Channels;
 		bufer=new unsigned char[bufersize];
+#ifdef _DEBUG
 		if(debugfile){fprintf(debugfile,"Goto data start: %i\n",StartData);fflush(debugfile);}
+#endif
 		_fseeki64(f,StartData,SEEK_SET);
 	}else{
 		bufer=0;
@@ -385,7 +399,9 @@ int tDSD::get_samples(int need_sam,unsigned char **data){//return bytes
 		if(CurByte>=BlockSize)CurByte=0;//Next Block
 		//if(debugfile){fprintf(debugfile,"bytes_ready=%i,CurByte=%i\n",bytes_ready,CurByte);fflush(debugfile);}
 	}
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"+END+ bytes_ready=%i,need_bytes=%i\n",bytes_ready,need_bytes);fflush(debugfile);}
+#endif
 	return bytes_ready;//(no_empty)?outbytes:0;
 }
 int tDSD::rewindto(__int64 cursample){

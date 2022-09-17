@@ -2,8 +2,10 @@
 #include<math.h>
 #define MyPi 3.1415926535897932384626433832795
 
+#ifdef _DEBUG
 #include<stdio.h>		//+++++++DEBUG
 extern FILE *debugfile;	//+++++++DEBUG
+#endif
 
 #ifndef abs
     #define abs(arg) ((arg>0)?(arg):-(arg))
@@ -74,6 +76,7 @@ void tDSD_decoder::generate_table(void){//32-bit variant
 		}
 	}
 	//--- debug output
+#ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start Generate table\n");fflush(debugfile);}
 	for(int i=0;i<length/8;i++){
 		if(debugfile){fprintf(debugfile,"%i,",table[255][i]);fflush(debugfile);}
@@ -83,7 +86,7 @@ void tDSD_decoder::generate_table(void){//32-bit variant
 		if(debugfile){fprintf(debugfile,"%i,",table[128][i]);fflush(debugfile);}
 	}
 	if(debugfile){fprintf(debugfile,"\nFinish Generate table\n");fflush(debugfile);}
-
+#endif
 	//--- free
 	delete[]realtable;
 	return;
@@ -100,7 +103,7 @@ void tDSD_decoder::decode_block(unsigned char **input_data,int **output_data){
 		need_regenerate_table=false;
 	}
 
-	int cs=0;
+	//int cs=0;
 	for(int i=0;i<BlockLength;i++){
 		for(int ch=0;ch<channels;ch++){
 			for(int j=0;j<(x_factor/8);j++){
