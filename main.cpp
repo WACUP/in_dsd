@@ -18,6 +18,7 @@
 #include"api.h"
 #include<loader/loader/paths.h>
 #include<loader/loader/utils.h>
+#include<../wacup_version.h>
 
 //------------------------ Internal headers
 #include"DSD.h"
@@ -136,10 +137,9 @@ void __cdecl GetFileExtensions(void)
 
 void about(HWND hwndParent){
 	wchar_t message[1024] = { 0 };
-	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal "
-					L"DSD4Winamp plug-in v1.1 by David Kharabadze "
-					L"(2017)\n\nWACUP modifications by Darren "
-					L"Owen aka DrO (2022)\n\nBuild date: %s",
+	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp plug-in "
+					L"v1.1 by David Kharabadze (2017)\n\nWACUP modifications by Darren "
+					L"Owen aka DrO (2022-" WACUP_COPYRIGHT L")\n\nBuild date: %s",
 					(LPCWSTR)plugin.description, TEXT(__DATE__));
 	AboutMessageBox(hwndParent, message, L"Direct Stream Digital Player");
 }
@@ -150,6 +150,7 @@ int init(void) {
 	//if(debugfile==0)fopen_s(&debugfile,"D:/David/DSDdebug.txt","wt");//ON DEBUG
 	if(debugfile){fprintf(debugfile,"Start debug\n");fflush(debugfile);}
 #endif
+	plugin.description = (char*)L"Direct Stream Digital Player v1.2.1";
 	return IN_INIT_SUCCESS;
 }
 
@@ -188,7 +189,7 @@ void getfileinfo(const in_char *filename, in_char *title, int *length_in_ms){
 		locDSD->start(lf);
 		fclose(lf);
 		if(length_in_ms)
-			*length_in_ms=int(locDSD->Samples*1000/locDSD->SampleRate);
+			*length_in_ms=(locDSD->SampleRate>0 ? int(locDSD->Samples*1000/locDSD->SampleRate) : -1);
 		if(title)
 			wcscpy(title,L"Future_File");
 #ifdef _DEBUG
