@@ -35,7 +35,7 @@ int init(void);
 void quit(void);
 void getfileinfo(const in_char* filename, in_char* title, int* length_in_ms);
 int infoDlg(const in_char* fn, HWND hwnd);
-int isourfile(const in_char* fn);
+//int isourfile(const in_char* fn);
 int play(const in_char* fn);
 void pause();
 void unpause();
@@ -63,7 +63,7 @@ In_Module plugin = { IN_VER_WACUP,
 	quit,
 	getfileinfo,
 	infoDlg,
-	isourfile,
+	0/*/isourfile/**/,
 	play,
 	pause,
 	unpause,
@@ -150,7 +150,7 @@ int init(void) {
 	//if(debugfile==0)fopen_s(&debugfile,"D:/David/DSDdebug.txt","wt");//ON DEBUG
 	if(debugfile){fprintf(debugfile,"Start debug\n");fflush(debugfile);}
 #endif
-	plugin.description = (char*)L"Direct Stream Digital Player v1.2.1";
+	plugin.description = (char*)L"Direct Stream Digital Player v1.2.2";
 	return IN_INIT_SUCCESS;
 }
 
@@ -213,10 +213,10 @@ int infoDlg(const in_char *fn, HWND hwnd)
 	return INFOBOX_UNCHANGED;
 }
 
-int isourfile(const in_char *fn) {
+/*int isourfile(const in_char *fn) {
 // return !strncmp(fn,"http://",7); to detect HTTP streams, etc
 	return 0;
-}
+}*/
 
 //-------------------------------------------------------------------------- MAIN DECODER
 // render 576 samples into buf.
