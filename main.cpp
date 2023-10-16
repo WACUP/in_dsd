@@ -11,6 +11,8 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
+#define PLUGIN_VERSION L"1.2.3"
+
 //------------------------ External headers
 #include<Windows.h>
 #include<strsafe.h>
@@ -51,7 +53,7 @@ void __cdecl GetFileExtensions(void);
 
 //------------------------ Connection with plugin
 In_Module plugin = { IN_VER_WACUP,
-	(char*)L"Direct Stream Digital Player v1.2",
+	(char*)L"Direct Stream Digital Player v" PLUGIN_VERSION,
 	0,	// hMainWindow
 	0,	// hDllInstance
 	0,
@@ -62,8 +64,8 @@ In_Module plugin = { IN_VER_WACUP,
 	init,
 	quit,
 	getfileinfo,
-	infoDlg,
-	0/*/isourfile/**/,
+	0/*infoDlg*/,
+	0/*isourfile*/,
 	play,
 	pause,
 	unpause,
@@ -150,7 +152,7 @@ int init(void) {
 	//if(debugfile==0)fopen_s(&debugfile,"D:/David/DSDdebug.txt","wt");//ON DEBUG
 	if(debugfile){fprintf(debugfile,"Start debug\n");fflush(debugfile);}
 #endif
-	plugin.description = (char*)L"Direct Stream Digital Player v1.2.2";
+	plugin.description = (char*)L"Direct Stream Digital Player v" PLUGIN_VERSION;
 	return IN_INIT_SUCCESS;
 }
 
@@ -207,11 +209,11 @@ void getfileinfo(const in_char *filename, in_char *title, int *length_in_ms){
 	return;
 }
 
-int infoDlg(const in_char *fn, HWND hwnd)
+/*int infoDlg(const in_char *fn, HWND hwnd)
 {
 	// CHANGEME! Write your own info dialog code here
 	return INFOBOX_UNCHANGED;
-}
+}*/
 
 /*int isourfile(const in_char *fn) {
 // return !strncmp(fn,"http://",7); to detect HTTP streams, etc
@@ -580,8 +582,8 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 	if (SameStrA(metadata, "type") ||
 		SameStrA(metadata, "streammetadata"))
 	{
-		dest[0] = '0';
-		dest[1] = 0;
+		dest[0] = L'0';
+		dest[1] = L'\0';
 		return 1;
 	}
 	else if (SameStrA(metadata, "streamgenre") ||
