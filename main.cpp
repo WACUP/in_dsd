@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.3"
+#define PLUGIN_VERSION L"1.2.5"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -94,24 +94,13 @@ FILE *debugfile=0;//Debug file for information output
 #endif
 FILE *f;//Input sound file
 tDSD DSD;//DSD parser
-tDSD_decoder DSD_decoder;
-//------------------------ Buffers
-unsigned char **encoded_data=0;
-int **decoded_data=0;
-char *sample_data=0;//output
-
-//int file_length;		// file length, in bytes
 
 volatile int killDecodeThread=0;
 HANDLE thread_handle=NULL;
 
-__int64 decode_pos_samples;//current decoding position in samples (44100)
-int decode_pos_ms;		// current decoding position, in milliseconds.
-						// Used for correcting DSP plug-in pitch changes
-int paused;				// are we paused?
-volatile int seek_needed; // if != -1, it is the point that the decode
-
-
+int decode_pos_ms=0;			// current decoding position, in milliseconds.
+int paused=0;					// are we paused?
+volatile int seek_needed=-1;	// if != -1, it is the point that the decode
 
 
 //------------------------ Function for size reduce
@@ -124,8 +113,10 @@ void __cdecl GetFileExtensions(void)
 	static bool loaded_extensions;
 	if (!loaded_extensions)
 	{
-		plugin.FileExtensions = (char*)L"DSF\0Sony Direct Stream Digital (*.DSF)\0DFF\0Phillips Direct Stream Digital (*.DFF)\0";
 		loaded_extensions = true;
+
+		plugin.FileExtensions = (char*)L"DSF\0Sony Direct Stream Digital (*.DSF)\0DFF"
+									   L"\0Phillips Direct Stream Digital (*.DFF)\0";
 	}
 }
 
@@ -229,25 +220,26 @@ void getfileinfo(const in_char *filename, in_char *title, int *length_in_ms){
 // might not look as good as it could. Stick with 576 sample blocks
 // if you can, and have an additional auxiliary (overflow) buffer if
 // necessary..
-int get_576_samples(char *buf){
+int get_576_samples(tDSD_decoder* DSD_decoder, int** decoded_data,
+					unsigned char **encoded_data, char *buf){
 	//int halfsize=576*DSD.Channels*BPS/8;
 	__int64 l=0;
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start DSD.GetSamples\n");fflush(debugfile);}
 #endif
 
-	l=DSD.get_samples(576*DSD_decoder.x_factor,encoded_data);//l=bytes in one channel
+	l=DSD.get_samples(576*DSD_decoder->x_factor,encoded_data);//l=bytes in one channel
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start DSD_decodr.decode_block\n");fflush(debugfile);}
 #endif
 
 	//DSD_decoder.dummy_block(encoded_data,decoded_data);
-	DSD_decoder.decode_block(encoded_data,decoded_data);
+	DSD_decoder->decode_block(encoded_data,decoded_data);
 	//l=l*Channels*(BPS/8)/DSD_decoder.x_factor/8;
 
 	//int newsize=(l*8/DSD_decoder.x_factor)*DSD_decoder.channels*(BPS/8);//Exact value
 	//int newsize=(l==0)?0:576*DSD_decoder.channels*(BPS/8);//zero or 576 samples
-	int newsize=(l==576*DSD_decoder.x_factor/8)?576*DSD_decoder.channels*(BPS/8):0;//zero or 576 samples
+	int newsize=(l==576*DSD_decoder->x_factor/8)?576*DSD_decoder->channels*(BPS/8):0;//zero or 576 samples
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start sound2char\n");fflush(debugfile);}
 #endif
@@ -269,37 +261,33 @@ int get_576_samples(char *buf){
 	return (newsize);
 }
 
-int free_memory_bufer(void){
-	if(encoded_data){
-		for(int ch=0;ch<DSD.Channels;ch++){
-			if(encoded_data[ch]){
-				delete[]encoded_data[ch];
-				encoded_data[ch]=0;
-			}
-		}
-		delete[]encoded_data;encoded_data=0;
-	};
-	if(decoded_data){
-		for(int ch=0;ch<DSD.Channels;ch++){
-			if(decoded_data[ch]){
-				delete[]decoded_data[ch];
-				decoded_data[ch]=0;
-			}
-		}
-		delete[]decoded_data;decoded_data=0;
-	};
-	if(sample_data){
-		delete[]sample_data;sample_data=0;
-	}
-	return 0;
-}
-
 DWORD WINAPI DecodeThread(LPVOID b)
 {
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start DecodeThread\n");fflush(debugfile);}
 #endif
-	int done=0; // set to TRUE if decoding has finished
+	tDSD_decoder* DSD_decoder = (tDSD_decoder*)b;
+	if (DSD_decoder)
+	{
+		char* sample_data = new char[DSD.Channels * 576 * 2 * BPS / 8];//output
+		int done = 0; // set to TRUE if decoding has finished
+		__int64 decode_pos_samples = 0;//current decoding position in samples (44100)
+
+		int** decoded_data = new int* [DSD.Channels];
+	if(decoded_data){
+		for(int ch=0;ch<DSD.Channels;ch++){
+				decoded_data[ch] = new int[576];
+			}
+		}
+
+		const int encoded_size = 576 * DSD_decoder->x_factor / 8;
+		unsigned char** encoded_data = new unsigned char* [DSD.Channels];
+		if (encoded_data) {
+			for (int ch = 0; ch < DSD.Channels; ch++) {
+				encoded_data[ch] = new unsigned char[encoded_size];
+	}
+}
+
 	while (!killDecodeThread)
 	{
 		if (seek_needed != -1){ // seek is needed.
@@ -333,9 +321,11 @@ DWORD WINAPI DecodeThread(LPVOID b)
 				break;//return 0;	// quit thread
 			}
 			Sleep(10);		// give a little CPU time back to the system.
-		}else if(paused){
+			}
+			else if (paused) {
 			Sleep(10);
-		}else{
+			}
+			else {
 			int bl=((576*DSD.Channels*(BPS/8))*(plugin.dsp_isactive()?2:1));
 
 			// CanWrite() returns the number of bytes you can write, so we check that
@@ -346,13 +336,14 @@ DWORD WINAPI DecodeThread(LPVOID b)
 #ifdef _DEBUG
 				if(debugfile){fprintf(debugfile,"Start get576samples %i\n",bl);fflush(debugfile);}
 #endif
-				int l=get_576_samples(sample_data);	   // retrieve samples
+					int samples = get_576_samples(DSD_decoder, decoded_data, encoded_data, sample_data);	   // retrieve samples
 #ifdef _DEBUG
 				if(debugfile){fprintf(debugfile,"Finish get576samples %i\n",l);fflush(debugfile);}
 #endif
-				if (!l){			// no samples means we're at eof
+					if (!samples) {			// no samples means we're at eof
 					done=1;
-				}else{	// we got samples!
+					}
+					else {	// we got samples!
 					// give the samples to the vis subsystems
 #ifdef _DEBUG
 					if(debugfile){fprintf(debugfile,"SA Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
@@ -369,24 +360,58 @@ DWORD WINAPI DecodeThread(LPVOID b)
 					if(debugfile){fprintf(debugfile,"Finish Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
 #endif
 					// if we have a DSP plug-in, then call it on our samples
-					if (plugin.dsp_isactive())
-						l=plugin.dsp_dosamples(
-						(short *)sample_data,2*576,BPS,DSD.Channels,SAMPLERATE
-						  ) // dsp_dosamples
-						  *(DSD.Channels*(BPS/8));
+						if (plugin.dsp_isactive()) {
+							samples = plugin.dsp_dosamples((short*)sample_data, samples,
+														   BPS, DSD.Channels, SAMPLERATE);
+						}
 
 					// write the pcm data to the output system
-					plugin.outMod->Write(sample_data,l);
+						plugin.outMod->Write(sample_data, samples);
+					}
 				}
-			}else Sleep(20);
+				else Sleep(20);
 			// if we can't write data, wait a little bit. Otherwise, continue
 			// through the loop writing more data (without sleeping)
 		}
 	}
-	if (f){fclose(f);f=0;}//for next opening...
+		if (DSD.f) { fclose(DSD.f); DSD.f = 0; }//for next opening...
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Finish DecodeThread\n");fflush(debugfile);}
 #endif
+
+		//--- Free buffer
+		if (encoded_data) {
+			for (int ch = 0; ch < DSD.Channels; ch++) {
+				if (encoded_data[ch]) {
+					delete[] encoded_data[ch];
+					encoded_data[ch] = 0;
+				}
+			}
+
+			delete[] encoded_data;
+			encoded_data = 0;
+		}
+
+		if (decoded_data) {
+			for (int ch = 0; ch < DSD.Channels; ch++) {
+				if (decoded_data[ch]) {
+					delete[] decoded_data[ch];
+					decoded_data[ch] = 0;
+				}
+			}
+
+			delete[] decoded_data;
+			decoded_data = 0;
+		}
+
+		if (sample_data) {
+			delete[]sample_data;
+			sample_data = 0;
+		}
+
+		delete DSD_decoder;
+	}
+
 	if (thread_handle != NULL)
 	{
 		CloseHandle(thread_handle);
@@ -400,44 +425,32 @@ int play(const in_char *fn){
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start Playing\n");fflush(debugfile);}
 #endif
-	int maxlatency;
 
-	//paused=0;
-	//decode_pos_ms=0;
-	//seek_needed=-1;
 	paused=0;
 	decode_pos_ms=0;
 	seek_needed=-1;
 
+	tDSD_decoder* DSD_decoder = new tDSD_decoder();
+	if (!DSD_decoder)return 1;
 
 	// CHANGEME! Write your own file opening code here
 	//f=fopen(fn,"rb");
-	f = _wfsopen(fn, L"rb", _SH_DENYNO);
+	FILE *f = _wfsopen(fn, L"rb", _SH_DENYNO);
 	if(f==0)return 1;
 
 	//------------------------ New DSD+Decoder
 	DSD.start(f);
 	//int NCH=DSD.Channels;//Channels
 	if(DSD.SampleRate==0) return 1;//Zero samplerate :)
-	else if((DSD.SampleRate%44100)==0){SAMPLERATE=44100;DSD_decoder.set_ch_x(DSD.Channels,DSD.SampleRate/44100);}
-	else if((DSD.SampleRate%48000)==0){SAMPLERATE=48000;DSD_decoder.set_ch_x(DSD.Channels,DSD.SampleRate/48000);}
+	else if((DSD.SampleRate%44100)==0){SAMPLERATE=44100;DSD_decoder->set_ch_x(DSD.Channels,DSD.SampleRate/44100);}
+	else if((DSD.SampleRate%48000)==0){SAMPLERATE=48000;DSD_decoder->set_ch_x(DSD.Channels,DSD.SampleRate/48000);}
 	else return 1;//
-	DSD_decoder.set_LSB_MSB(DSD.LSB_first,DSD.MSB_first);
+	DSD_decoder->set_LSB_MSB(DSD.LSB_first,DSD.MSB_first);
 
 	//------------------------ Get memory
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Getting memory\n");fflush(debugfile);}
 #endif
-	free_memory_bufer();
-
-	const int encoded_size=576*DSD_decoder.x_factor/8;
-	encoded_data=new unsigned char*[DSD.Channels];
-	for(int ch=0;ch<DSD.Channels;ch++)encoded_data[ch]=new unsigned char[encoded_size];
-
-	decoded_data=new int*[DSD.Channels];
-	for(int ch=0;ch<DSD.Channels;ch++)decoded_data[ch]=new int[576];
-
-	sample_data = new char[DSD.Channels * 576 * 2 * BPS / 8];
 
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Finish Getting memory\n");fflush(debugfile);}
@@ -450,7 +463,7 @@ int play(const in_char *fn){
 	// -1 and -1 are to specify buffer and prebuffer lengths.
 	// -1 means to use the default, which all input plug-ins should
 	// really do.
-	maxlatency = plugin.outMod->Open(SAMPLERATE,DSD.Channels,BPS, -1,-1);
+	const int maxlatency = (plugin.outMod->Open ? plugin.outMod->Open(SAMPLERATE,DSD.Channels,BPS, -1,-1) : -1);
 
 	// maxlatency is the maxium latency between a outMod->Write() call and
 	// when you hear those samples. In ms. Used primarily by the visualization
@@ -473,20 +486,18 @@ int play(const in_char *fn){
 	// current volume.
 	plugin.outMod->SetVolume(-666);
 
-	decode_pos_samples=0;decode_pos_ms=0;
+	decode_pos_ms=0;
 	// launch decode thread
 	killDecodeThread=0;
-	thread_handle = (HANDLE)
-		CreateThread(NULL,0,(LPTHREAD_START_ROUTINE) DecodeThread,NULL,0,NULL);
-
+	thread_handle = StartThread(DecodeThread, DSD_decoder, static_cast<int>(plugin.config->
+								GetInt(playbackConfigGroupGUID, L"priority",
+								THREAD_PRIORITY_HIGHEST)), 0, NULL);
 	// set the thread priority
-	if (thread_handle == NULL ||
-		SetThreadPriority(thread_handle, (int)plugin.config->GetInt(playbackConfigGroupGUID, L"priority", THREAD_PRIORITY_HIGHEST)) == 0)
+	if (thread_handle == NULL)
 	{
 		fclose(f);f=0;
 		return -1;
 	}
-	ResumeThread(thread_handle);
 	return 0;
 }
 void pause() { paused=1; plugin.outMod->Pause(1); }
@@ -514,10 +525,9 @@ void stop() {
 
 
 	// CHANGEME! Write your own file closing code here
-	if (f){fclose(f);f=0;}
+	//if (f){fclose(f);f=0;}
 
 	//--- Free buffer
-	free_memory_bufer();
 	//if((sample_buffer_size!=0)&&(sample_buffer!=0))
 	//delete[] sample_buffer;
 	//sample_buffer_size=0;
@@ -529,7 +539,6 @@ void stop() {
 // returns length of playing track (in ms)
 int getlength() {
 	return int(DSD.Samples*1000/DSD.SampleRate);
-	//(file_length*10)/(SAMPLERATE/100*NCH*(BPS/8));
 }
 
 
@@ -589,7 +598,8 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 	else if (SameStrA(metadata, "streamgenre") ||
 			 SameStrA(metadata, "streamtype") ||
 			 SameStrA(metadata, "streamurl") ||
-			 SameStrA(metadata, "streamname"))
+			 SameStrA(metadata, "streamname") ||
+			 SameStrA(metadata, "reset"))
 	{
 		return 0;
 	}
@@ -648,8 +658,8 @@ extern "C" __declspec(dllexport) In_Module * winampGetInModule2()
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
 	// prompt to remove our settings with default as no (just incase)
-	/*if (MessageBox( hwndDlg, WASABI_API_LNGSTRINGW( IDS_UNINSTALL_SETTINGS_PROMPT ),
-					pluginTitle, MB_YESNO | MB_DEFBUTTON2 ) == IDYES ) {
+	/*if (plugin.language->UninstallSettingsPrompt(reinterpret_cast<const wchar_t*>(plugin.description)))
+	{
 		SaveNativeIniString(PLUGIN_INI, _T("APE Plugin Settings"), 0, 0);
 	}*/
 
@@ -755,7 +765,7 @@ extern "C" __declspec(dllexport) intptr_t winampGetExtendedRead_getData(intptr_t
 
 		e->decoder.decode_block(e->encoded_data, e->decoded_data);
 
-		const int newsize = (l == 576 * e->decoder.x_factor / 8) ? 576 * e->decoder.channels * (BPS / 8) : 0;//zero or 576 samples
+		const size_t newsize = (l == 576 * e->decoder.x_factor / 8) ? 576 * e->decoder.channels * (BPS / 8) : 0;//zero or 576 samples
 #ifdef _DEBUG
 		if (debugfile) { fprintf(debugfile, "Start sound2char\n"); fflush(debugfile); }
 #endif

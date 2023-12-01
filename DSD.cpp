@@ -175,7 +175,7 @@ int tDSD::start_DSD(void){
 		__int64 last_block_start=StartData+msamples-BlockSize*Sony_Channels;
 		_fseeki64(f,last_block_start,SEEK_SET);
 		int minimum_last=BlockSize;
-		for(int ch=0;ch<Sony_Channels;ch++){
+		for(unsigned int ch=0;ch<Sony_Channels;ch++){
 			int last_non_eq=0;
 			unsigned char last_byte=0;
 			for(int sm=0;sm<BlockSize;sm++){
@@ -264,14 +264,14 @@ int tDSD::start_FRM8(void){//Phillips format (fill it later)
 								if(fread(&NAME,1,4,f)!=4)return 0;LocalLocalSize-=4;
 								ChannelName[cur_ch]=NAME;
 								for(int i=0;i<CHANNEL_MAX;i++)
-									if(ChannelAbbrev[i]==NAME)ChannelType[cur_ch]=i;
+									if(ChannelAbbrev[i]==(unsigned int)NAME)ChannelType[cur_ch]=i;
 								cur_ch++;
 							}
 							break;
 						case 'RPMC':
 							if(fread(&NAME,1,4,f)!=4)return 0;LocalLocalSize-=4;
 							if(NAME!=' DSD')return 0;//Compressed data
-							int len;
+							size_t len;
 							len=0;
 							if(fread(&len,1,1,f)!=1)return 0;LocalLocalSize--;
 							CompressionName=new(unsigned char[len+1]);
@@ -354,13 +354,13 @@ int tDSD::start(FILE *infile){// Sony or Phillips
 	if(ans==0){
 		//-------------------------------------- buffer data
 		bufersize=BlockSize*Channels;
-		bufer=new unsigned char[bufersize];
+		buffer=new unsigned char[bufersize];
 #ifdef _DEBUG
 		if(debugfile){fprintf(debugfile,"Goto data start: %i\n",StartData);fflush(debugfile);}
 #endif
 		_fseeki64(f,StartData,SEEK_SET);
 	}else{
-		bufer=0;
+		buffer=0;
 	}
 
 	return ans;
@@ -370,8 +370,8 @@ int tDSD::get_block(void){//return:bytes
 	__int64 maxbytes=(Samples*Channels/8)-CurBlock*BlockSize*Channels;//bytes left
 	int need_bytes=(bufersize<maxbytes)?bufersize:maxbytes;
 	int sz=0;
-	if(need_bytes)sz=fread(bufer,1,need_bytes,f);
-	for(int i=sz;i<bufersize;i++)bufer[i]=0x55;
+	if(need_bytes)sz=(int)fread(buffer,1,need_bytes,f);
+	for(int i=sz;i<bufersize;i++)buffer[i]=0x55;
 	return sz;
 }
 int tDSD::get_samples(int need_sam,unsigned char **data){//return bytes
@@ -389,7 +389,7 @@ int tDSD::get_samples(int need_sam,unsigned char **data){//return bytes
 		for(int ch=0;ch<Channels;ch++){
 			for(int by=CurByte,bb_i=0;by<maxbyte;by++,bb_i++){
 				//if(debugfile){fprintf(debugfile,"%i,",bb_i);fflush(debugfile);}
-				data[ch][bytes_ready+bb_i]=bufer[ch*BlockSize+by];
+				data[ch][bytes_ready+bb_i]=buffer[ch*BlockSize+by];
 			}
 			//if(debugfile){fprintf(debugfile,"\n",bytes_ready,CurByte);fflush(debugfile);}
 
@@ -418,14 +418,15 @@ int tDSD::finish(void){
 	if(ChannelName)delete[](ChannelName);ChannelName=0;
 	if(ChannelType)delete[](ChannelType);ChannelType=0;
 	if(CompressionName)delete[](CompressionName);CompressionName=0;
-	if(bufer)delete[](bufer);bufer=0;
+	if(buffer)delete[](buffer);buffer=0;
+	if (f){fclose(f);f=0;}
 	return 0;
 }
 tDSD::tDSD(void){
 	ChannelName=0;
 	ChannelType=0;
 	CompressionName=0;
-	bufer=0;
+	buffer=0;
 	return;
 }
 tDSD::~tDSD(void){

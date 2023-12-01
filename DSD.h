@@ -66,7 +66,7 @@ struct tDSD{
 	//--- Pointer data & input bufer
 	__int64 CurBlock;
 	int CurByte;
-	unsigned char *bufer;
+	unsigned char *buffer;
 	int bufersize;
 
 	//--- Sound Data
