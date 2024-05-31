@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.5"
+#define PLUGIN_VERSION L"1.2.6"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -76,9 +76,9 @@ In_Module plugin = { IN_VER_WACUP,
 	setoutputtime,
 	setvolume,
 	setpan,
-	0,0,0,0,0,0,0,0,0, // vis stuff
+	IN_INIT_VIS_RELATED_CALLS,
 	0,0,	// dsp
-	NULL,
+	IN_INIT_WACUP_EQSET_EMPTY
 	NULL,	// setinfo
 	0,		// out_mod,
 	NULL,	// api_service
@@ -130,10 +130,10 @@ void __cdecl GetFileExtensions(void)
 
 void about(HWND hwndParent){
 	wchar_t message[1024] = { 0 };
-	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp plug-in "
-					L"v1.1 by David Kharabadze (2017)\n\nWACUP modifications by Darren "
-					L"Owen aka DrO (2022-" WACUP_COPYRIGHT L")\n\nBuild date: %s",
-					(LPCWSTR)plugin.description, TEXT(__DATE__));
+	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp "
+					L"plug-in v1.1 by David Kharabadze (2017)\n\nWACUP "
+					L"modifications by " WACUP_AUTHOR_STRW L" (2022-" WACUP_COPYRIGHT
+					L")\n\nBuild date: %s", (LPCWSTR)plugin.description, TEXT(__DATE__));
 	AboutMessageBox(hwndParent, message, L"Direct Stream Digital Player");
 }
 
@@ -252,8 +252,8 @@ int get_576_samples(tDSD_decoder* DSD_decoder, int** decoded_data,
 			}/*/
 			memcpy(&buf[buk], &decoded_data[ch][sm], 3);
 			buk += 3;/**/
-			}
 		}
+	}
 
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Finish 576-block\n");fflush(debugfile);}
@@ -274,8 +274,8 @@ DWORD WINAPI DecodeThread(LPVOID b)
 		__int64 decode_pos_samples = 0;//current decoding position in samples (44100)
 
 		int** decoded_data = new int* [DSD.Channels];
-	if(decoded_data){
-		for(int ch=0;ch<DSD.Channels;ch++){
+		if (decoded_data) {
+			for (int ch = 0; ch < DSD.Channels; ch++) {
 				decoded_data[ch] = new int[576];
 			}
 		}
@@ -285,98 +285,98 @@ DWORD WINAPI DecodeThread(LPVOID b)
 		if (encoded_data) {
 			for (int ch = 0; ch < DSD.Channels; ch++) {
 				encoded_data[ch] = new unsigned char[encoded_size];
-	}
-}
-
-	while (!killDecodeThread)
-	{
-		if (seek_needed != -1){ // seek is needed.
-			decode_pos_ms=seek_needed;
-
-			decode_pos_samples=decode_pos_ms;
-			decode_pos_samples=decode_pos_samples*SAMPLERATE/1000;
-
-			__int64 offset=seek_needed;
-			offset=offset*DSD.SampleRate/1000;
-
-			seek_needed=-1;
-			//if(debugfile){fprintf(debugfile,"Start rewind %i / %i\n",seek_needed,offset);fflush(debugfile);}
-			DSD.rewindto(offset);
-			//if(debugfile){fprintf(debugfile,"Finish rewind %i / %i\n",seek_needed,offset);fflush(debugfile);}
+			}
 		}
 
-		if (done){ // done was set to TRUE during decoding, signaling eof
+		while (!killDecodeThread)
+		{
+			if (seek_needed != -1) { // seek is needed.
+				decode_pos_ms = seek_needed;
+
+				decode_pos_samples = decode_pos_ms;
+				decode_pos_samples = decode_pos_samples * SAMPLERATE / 1000;
+
+				__int64 offset = seek_needed;
+				offset = offset * DSD.SampleRate / 1000;
+
+				seek_needed = -1;
+				//if(debugfile){fprintf(debugfile,"Start rewind %i / %i\n",seek_needed,offset);fflush(debugfile);}
+				DSD.rewindto(offset);
+				//if(debugfile){fprintf(debugfile,"Finish rewind %i / %i\n",seek_needed,offset);fflush(debugfile);}
+			}
+
+			if (done) { // done was set to TRUE during decoding, signaling eof
 #ifdef _DEBUG
-			if(debugfile){fprintf(debugfile,"Done...\n");fflush(debugfile);}
+				if (debugfile) { fprintf(debugfile, "Done...\n"); fflush(debugfile); }
 #endif
 
-			plugin.outMod->CanWrite();		// some output drivers need CanWrite
-									    // to be called on a regular basis.
+				plugin.outMod->CanWrite();		// some output drivers need CanWrite
+											// to be called on a regular basis.
 
-			if (!plugin.outMod->IsPlaying())
-			{
-				// we're done playing, so tell Winamp and quit the thread.
-				/*PostMessage(plugin.hMainWindow,WM_WA_MPEG_EOF,0,0);/*/
-				PostEOF();/**/
-				break;//return 0;	// quit thread
-			}
-			Sleep(10);		// give a little CPU time back to the system.
+				if (!plugin.outMod->IsPlaying())
+				{
+					// we're done playing, so tell Winamp and quit the thread.
+					/*PostMessage(plugin.hMainWindow,WM_WA_MPEG_EOF,0,0);/*/
+					PostEOF();/**/
+					break;//return 0;	// quit thread
+				}
+				Sleep(10);		// give a little CPU time back to the system.
 			}
 			else if (paused) {
-			Sleep(10);
+				Sleep(10);
 			}
 			else {
-			int bl=((576*DSD.Channels*(BPS/8))*(plugin.dsp_isactive()?2:1));
+				int bl = ((576 * DSD.Channels * (BPS / 8)) * (plugin.dsp_isactive() ? 2 : 1));
 
-			// CanWrite() returns the number of bytes you can write, so we check that
-			// to the block size. the reason we multiply the block size by two if
-			// plugin.dsp_isactive() is that DSP plug-ins can change it by up to a
-			// factor of two (for tempo adjustment).
-			if (plugin.outMod->CanWrite() >= bl){
+				// CanWrite() returns the number of bytes you can write, so we check that
+				// to the block size. the reason we multiply the block size by two if
+				// plugin.dsp_isactive() is that DSP plug-ins can change it by up to a
+				// factor of two (for tempo adjustment).
+				if (plugin.outMod->CanWrite() >= bl) {
 #ifdef _DEBUG
-				if(debugfile){fprintf(debugfile,"Start get576samples %i\n",bl);fflush(debugfile);}
+					if (debugfile) { fprintf(debugfile, "Start get576samples %i\n", bl); fflush(debugfile); }
 #endif
 					int samples = get_576_samples(DSD_decoder, decoded_data, encoded_data, sample_data);	   // retrieve samples
 #ifdef _DEBUG
-				if(debugfile){fprintf(debugfile,"Finish get576samples %i\n",l);fflush(debugfile);}
+					if (debugfile) { fprintf(debugfile, "Finish get576samples %i\n", l); fflush(debugfile); }
 #endif
 					if (!samples) {			// no samples means we're at eof
-					done=1;
+						done = 1;
 					}
 					else {	// we got samples!
-					// give the samples to the vis subsystems
+					   // give the samples to the vis subsystems
 #ifdef _DEBUG
-					if(debugfile){fprintf(debugfile,"SA Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
+						if (debugfile) { fprintf(debugfile, "SA Add pcm data %i\n", decode_pos_ms); fflush(debugfile); }
 #endif
-					plugin.SAAddPCMData((char *)sample_data,DSD.Channels,BPS,decode_pos_ms);
+						plugin.SAAddPCMData((char*)sample_data, DSD.Channels, BPS, decode_pos_ms);
 #ifdef _DEBUG
-					if(debugfile){fprintf(debugfile,"VS Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
+						if (debugfile) { fprintf(debugfile, "VS Add pcm data %i\n", decode_pos_ms); fflush(debugfile); }
 #endif
-					plugin.VSAAddPCMData((char *)sample_data,DSD.Channels,BPS,decode_pos_ms);
-					// adjust decode position variable
-					decode_pos_samples+=576; //(576*1000)/SAMPLERATE;
-					decode_pos_ms=int((decode_pos_samples*1000)/SAMPLERATE);
+						/*plugin.VSAAddPCMData((char*)sample_data, DSD.Channels, BPS, decode_pos_ms);*/
+						// adjust decode position variable
+						decode_pos_samples += 576; //(576*1000)/SAMPLERATE;
+						decode_pos_ms = int((decode_pos_samples * 1000) / SAMPLERATE);
 #ifdef _DEBUG
-					if(debugfile){fprintf(debugfile,"Finish Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
+						if (debugfile) { fprintf(debugfile, "Finish Add pcm data %i\n", decode_pos_ms); fflush(debugfile); }
 #endif
-					// if we have a DSP plug-in, then call it on our samples
+						// if we have a DSP plug-in, then call it on our samples
 						if (plugin.dsp_isactive()) {
 							samples = plugin.dsp_dosamples((short*)sample_data, samples,
 														   BPS, DSD.Channels, SAMPLERATE);
 						}
 
-					// write the pcm data to the output system
+						// write the pcm data to the output system
 						plugin.outMod->Write(sample_data, samples);
 					}
 				}
 				else Sleep(20);
-			// if we can't write data, wait a little bit. Otherwise, continue
-			// through the loop writing more data (without sleeping)
+				// if we can't write data, wait a little bit. Otherwise, continue
+				// through the loop writing more data (without sleeping)
+			}
 		}
-	}
 		if (DSD.f) { fclose(DSD.f); DSD.f = 0; }//for next opening...
 #ifdef _DEBUG
-	if(debugfile){fprintf(debugfile,"Finish DecodeThread\n");fflush(debugfile);}
+		if (debugfile) { fprintf(debugfile, "Finish DecodeThread\n"); fflush(debugfile); }
 #endif
 
 		//--- Free buffer
@@ -518,7 +518,10 @@ void stop() {
 	}
 
 	// close output system
-	plugin.outMod->Close();
+	if (plugin.outMod && plugin.outMod->Close)
+	{
+		plugin.outMod->Close();
+	}
 
 	// deinitialize visualization
 	plugin.SAVSADeInit();
@@ -671,7 +674,7 @@ struct ExtendedRead
 {
 	ExtendedRead() : f(NULL), encoded_data(NULL), decoded_data(NULL)
 	{
-}
+	}
 
 	~ExtendedRead()
 	{
@@ -737,7 +740,7 @@ extern "C" __declspec(dllexport) intptr_t winampGetExtendedRead_openW(const wcha
 				*nch = e->parser.Channels;
 				*size = /*-1/*/(int)(e->parser.Samples * (BPS / 8) * e->parser.Channels)/**/;
 				return (intptr_t)e;
-}
+			}
 
 fail:
 			fclose(e->f);
@@ -802,7 +805,7 @@ extern "C" __declspec(dllexport) void winampGetExtendedRead_close(intptr_t handl
 {
 	ExtendedRead* e = reinterpret_cast<ExtendedRead*>(handle);
 	if (e)
-{
+	{
 		delete e;
-}
+	}
 }
