@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.6"
+#define PLUGIN_VERSION L"1.2.7"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -20,7 +20,6 @@
 #include"api.h"
 #include<loader/loader/paths.h>
 #include<loader/loader/utils.h>
-#include<../wacup_version.h>
 
 //------------------------ Internal headers
 #include"DSD.h"
@@ -129,11 +128,12 @@ void __cdecl GetFileExtensions(void)
 }*/
 
 void about(HWND hwndParent){
+	// TODO localise
 	wchar_t message[1024] = { 0 };
-	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp "
-					L"plug-in v1.1 by David Kharabadze (2017)\n\nWACUP "
-					L"modifications by " WACUP_AUTHOR_STRW L" (2022-" WACUP_COPYRIGHT
-					L")\n\nBuild date: %s", (LPCWSTR)plugin.description, TEXT(__DATE__));
+	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp plug-in "
+					L"v1.1\nby David Kharabadze (2017)\n\nWACUP modifications by\n%s "
+					L"(2022-%s)\n\nBuild date: %s", (LPCWSTR)plugin.description,
+					WACUP_Author(), WACUP_Copyright(), TEXT(__DATE__));
 	AboutMessageBox(hwndParent, message, L"Direct Stream Digital Player");
 }
 
