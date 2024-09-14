@@ -51,8 +51,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,7,0
- PRODUCTVERSION 1,2,7,0
+ FILEVERSION 1,2,8,0
+ PRODUCTVERSION 1,2,8,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -69,12 +69,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "WACUP"
             VALUE "FileDescription", "Input Plug-in"
-            VALUE "FileVersion", "1.2.7.0"
+            VALUE "FileVersion", "1.2.8.0"
             VALUE "InternalName", "in_dsd.dll"
             VALUE "LegalCopyright", "Copyright © 2017 David Kharabadze. © 2022-2024 Darren Owen aka DrO"
             VALUE "OriginalFilename", "in_dsd.dll"
             VALUE "ProductName", "Direct Stream Digital Player"
-            VALUE "ProductVersion", "1.2.7.0"
+            VALUE "ProductVersion", "1.2.8.0"
         END
     END
     BLOCK "VarFileInfo"

@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.7"
+#define PLUGIN_VERSION L"1.2.8"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -463,7 +463,9 @@ int play(const in_char *fn){
 	// -1 and -1 are to specify buffer and prebuffer lengths.
 	// -1 means to use the default, which all input plug-ins should
 	// really do.
-	const int maxlatency = (plugin.outMod->Open ? plugin.outMod->Open(SAMPLERATE,DSD.Channels,BPS, -1,-1) : -1);
+	const int maxlatency = (plugin.outMod->Open && SAMPLERATE && DSD.Channels ?
+							plugin.outMod->Open(SAMPLERATE, DSD.Channels, BPS,
+																 -1, -1) : -1);
 
 	// maxlatency is the maxium latency between a outMod->Write() call and
 	// when you hear those samples. In ms. Used primarily by the visualization
@@ -500,8 +502,8 @@ int play(const in_char *fn){
 	}
 	return 0;
 }
-void pause() { paused=1; plugin.outMod->Pause(1); }
-void unpause() { paused=0; plugin.outMod->Pause(0); }
+void pause() { paused=1; if (plugin.outMod) plugin.outMod->Pause(1); }
+void unpause() { paused=0; if (plugin.outMod) plugin.outMod->Pause(0); }
 int ispaused() { return paused; }
 void stop() {
 	if (thread_handle != NULL)
@@ -524,8 +526,10 @@ void stop() {
 	}
 
 	// deinitialize visualization
-	plugin.SAVSADeInit();
-
+	if (plugin.outMod)
+	{
+		plugin.SAVSADeInit();
+	}
 
 	// CHANGEME! Write your own file closing code here
 	//if (f){fclose(f);f=0;}
@@ -550,8 +554,8 @@ int getlength() {
 // but the dsp plug-ins that do tempo changing tend to make
 // that wrong.
 int getoutputtime() {
-	return decode_pos_ms+
-		(plugin.outMod->GetOutputTime()-plugin.outMod->GetWrittenTime());
+	return (plugin.outMod ? decode_pos_ms+(plugin.outMod->GetOutputTime()-
+									plugin.outMod->GetWrittenTime()) : 0);
 }
 
 
@@ -568,11 +572,20 @@ void setvolume(int volume) {
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Set Volume %i\n",volume);fflush(debugfile);}
 #endif
-	plugin.outMod->SetVolume(volume);
+	if (plugin.outMod)
+	{
+		plugin.outMod->SetVolume(volume);
+	}
 	//DSD_decoder.set_volume(volume);
 	//plugin.outMod->SetVolume(255);
 }
-void setpan(int pan) { plugin.outMod->SetPan(pan); }
+
+void setpan(int pan) {
+	if (plugin.outMod)
+	{
+		plugin.outMod->SetPan(pan);
+	}
+}
 
 
 // exported symbol. Returns output module.
