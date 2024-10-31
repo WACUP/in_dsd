@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.8"
+#define PLUGIN_VERSION L"1.2.9"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -176,11 +176,11 @@ void getfileinfo(const in_char *filename, in_char *title, int *length_in_ms){
 		if(debugfile){fprintf(debugfile,"File %s info\n",filename);fflush(debugfile);}
 #endif
 		tDSD *locDSD=new tDSD;
-		FILE *lf;//lf=fopen(filename,"rb");
-		lf = _wfsopen(filename, L"rb", _SH_DENYNO);
-
-		locDSD->start(lf);
-		fclose(lf);
+		FILE *lf = _wfsopen(filename, L"rb", _SH_DENYNO);
+		if (lf != 0) {
+			locDSD->start(lf);
+			fclose(lf);
+		}
 		if(length_in_ms)
 			*length_in_ms=(locDSD->SampleRate>0 ? int(locDSD->Samples*1000/locDSD->SampleRate) : -1);
 		if(title)
