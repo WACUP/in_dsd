@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.9"
+#define PLUGIN_VERSION L"1.2.10"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -269,7 +269,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 	tDSD_decoder* DSD_decoder = (tDSD_decoder*)b;
 	if (DSD_decoder)
 	{
-		char* sample_data = new char[DSD.Channels * 576 * 2 * BPS / 8];//output
+		char* sample_data = new char[DSD.Channels * 576 * 8 * (BPS / 8)];//output
 		int done = 0; // set to TRUE if decoding has finished
 		__int64 decode_pos_samples = 0;//current decoding position in samples (44100)
 
