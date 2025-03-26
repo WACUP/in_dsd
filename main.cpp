@@ -463,9 +463,8 @@ int play(const in_char *fn){
 	// -1 and -1 are to specify buffer and prebuffer lengths.
 	// -1 means to use the default, which all input plug-ins should
 	// really do.
-	const int maxlatency = (plugin.outMod->Open && SAMPLERATE && DSD.Channels ?
-							plugin.outMod->Open(SAMPLERATE, DSD.Channels, BPS,
-																 -1, -1) : -1);
+	const int maxlatency = (plugin.outMod && plugin.outMod->Open && SAMPLERATE && DSD.Channels ?
+							plugin.outMod->Open(SAMPLERATE, DSD.Channels, BPS, -1, -1) : -1);
 
 	// maxlatency is the maxium latency between a outMod->Write() call and
 	// when you hear those samples. In ms. Used primarily by the visualization
