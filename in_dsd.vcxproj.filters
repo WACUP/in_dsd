@@ -43,6 +43,9 @@
     <None Include="in_dsd.def">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="about.txt.gz">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="in_dsd.rc">

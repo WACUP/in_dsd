@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.10"
+#define PLUGIN_VERSION L"1.2.11"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -20,10 +20,12 @@
 #include"api.h"
 #include<loader/loader/paths.h>
 #include<loader/loader/utils.h>
+#include<loader/hook/squash.h>
 
 //------------------------ Internal headers
 #include"DSD.h"
 #include"Decoder.h"
+#include"resource.h"
 
 
 //------------------------ Global constants & parameters
@@ -109,13 +111,22 @@ volatile int seek_needed=-1;	// if != -1, it is the point that the decode
 
 void __cdecl GetFileExtensions(void)
 {
-	static bool loaded_extensions;
-	if (!loaded_extensions)
+	if (!plugin.FileExtensions)
 	{
-		loaded_extensions = true;
+		LPCWSTR extensions[]
+		{
+			{ L"DSF" },
+			{ L"DFF" }
+		},
+			// TODO localise
+			descriptions[]
+		{
+			{ L"Sony Direct Stream Digital (*.DSF)" },
+			{ L"Phillips Direct Stream Digital (*.DFF)" },
+		};
 
-		plugin.FileExtensions = (char*)L"DSF\0Sony Direct Stream Digital (*.DSF)\0DFF"
-									   L"\0Phillips Direct Stream Digital (*.DFF)\0";
+		plugin.FileExtensions = BuildInputFileListArrayString(extensions, descriptions,
+													ARRAYSIZE(extensions), NULL, NULL);
 	}
 }
 
@@ -129,12 +140,12 @@ void __cdecl GetFileExtensions(void)
 
 void about(HWND hwndParent){
 	// TODO localise
-	wchar_t message[1024] = { 0 };
-	StringCchPrintf(message, ARRAYSIZE(message), L"%s\n\nOriginal DSD4Winamp plug-in "
-					L"v1.1\nby David Kharabadze (2017)\n\nWACUP modifications by\n%s "
-					L"(2022-%s)\n\nBuild date: %s", (LPCWSTR)plugin.description,
-					WACUP_Author(), WACUP_Copyright(), TEXT(__DATE__));
+	const unsigned char* output = DecompressResourceText(plugin.hDllInstance, plugin.hDllInstance, IDR_ABOUT_TEXT_GZ);
+	wchar_t message[1024]/* = { 0 }*/;
+	PrintfCch(message, ARRAYSIZE(message), (LPCWSTR)output, (LPCWSTR)plugin.description,
+			  WACUP_Author(), WACUP_Copyright(), TEXT(__DATE__));
 	AboutMessageBox(hwndParent, message, L"Direct Stream Digital Player");
+	SafeFree((void*)output);
 }
 
 int init(void) {
@@ -628,12 +639,12 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 			if (SameStr(e, L"DSF"))
 			{
 				/*pID = IDS_FAMILY_STRING_DSF;/*/
-				StringCchCopy(dest, destlen, L"Sony Direct Stream Digital File Format");/**/
+				CopyCchStr(dest, destlen, L"Sony Direct Stream Digital File Format");/**/
 			}
 			else if (SameStr(e, L"DFF"))
 			{
 				/*pID = IDS_FAMILY_STRING_DFF;/*/
-				StringCchCopy(dest, destlen, L"Phillips Direct Stream Digital File Format");/**/
+				CopyCchStr(dest, destlen, L"Phillips Direct Stream Digital File Format");/**/
 			}
 			else
 			{
@@ -642,7 +653,7 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 
 			/*if (pID != -1)
 			{
-				WASABI_API_LNGSTRINGW_BUF(pID, dest, destlen);
+				LngStringCopy(pID, dest, destlen);
 				return 1;
 			}*/
 			return 1;
@@ -673,7 +684,7 @@ extern "C" __declspec(dllexport) In_Module * winampGetInModule2()
 extern "C" __declspec(dllexport) int winampUninstallPlugin(HINSTANCE hDllInst, HWND hwndDlg, int param)
 {
 	// prompt to remove our settings with default as no (just incase)
-	/*if (plugin.language->UninstallSettingsPrompt(reinterpret_cast<const wchar_t*>(plugin.description)))
+	/*if (UninstallSettingsPrompt(reinterpret_cast<const wchar_t*>(plugin.description)))
 	{
 		SaveNativeIniString(PLUGIN_INI, _T("APE Plugin Settings"), 0, 0);
 	}*/
@@ -758,7 +769,7 @@ fail:
 			fclose(e->f);
 		}
 
-		plugin.memmgr->sysFree(e);
+		SafeFree(e);
 	}
 	return 0;
 }
