@@ -582,7 +582,7 @@ void setvolume(int volume) {
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Set Volume %i\n",volume);fflush(debugfile);}
 #endif
-	if (plugin.outMod)
+	if (plugin.outMod && plugin.outMod->SetVolume)
 	{
 		plugin.outMod->SetVolume(volume);
 	}
@@ -591,7 +591,7 @@ void setvolume(int volume) {
 }
 
 void setpan(int pan) {
-	if (plugin.outMod)
+	if (plugin.outMod && plugin.outMod->SetPan)
 	{
 		plugin.outMod->SetPan(pan);
 	}
@@ -621,10 +621,12 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 		dest[1] = L'\0';
 		return 1;
 	}
-	else if (SameStrA(metadata, "streamgenre") ||
-			 SameStrA(metadata, "streamtype") ||
-			 SameStrA(metadata, "streamurl") ||
-			 SameStrA(metadata, "streamname") ||
+	else if ((SameStrNA(metadata, "stream", 6) &&
+			  (SameStrA((metadata + 6), "type") ||
+			   SameStrA((metadata + 6), "genre") ||
+			   SameStrA((metadata + 6), "url") ||
+			   SameStrA((metadata + 6), "name") ||
+			   SameStrA((metadata + 6), "title"))) ||
 			 SameStrA(metadata, "reset"))
 	{
 		return 0;
