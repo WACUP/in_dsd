@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.11"
+#define PLUGIN_VERSION L"1.2.12"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -113,16 +113,16 @@ void __cdecl GetFileExtensions(void)
 {
 	if (!plugin.FileExtensions)
 	{
-		LPCWSTR extensions[]
+		const InputFileListArray extensions[]
 		{
-			{ L"DSF" },
-			{ L"DFF" }
+			{ L"DSF", 3 },
+			{ L"DFF", 3 }
 		},
 			// TODO localise
 			descriptions[]
 		{
-			{ L"Sony Direct Stream Digital (*.DSF)" },
-			{ L"Phillips Direct Stream Digital (*.DFF)" },
+			{ L"Sony Direct Stream Digital (*.DSF)", 34 },
+			{ L"Phillips Direct Stream Digital (*.DFF)", 38 }
 		};
 
 		plugin.FileExtensions = BuildInputFileListArrayString(extensions, descriptions,
