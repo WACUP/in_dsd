@@ -93,7 +93,6 @@ In_Module plugin = { IN_VER_WACUP,
 #ifdef _DEBUG
 FILE *debugfile=0;//Debug file for information output
 #endif
-FILE *f;//Input sound file
 tDSD DSD;//DSD parser
 
 volatile int killDecodeThread=0;
@@ -501,9 +500,7 @@ int play(const in_char *fn){
 	decode_pos_ms=0;
 	// launch decode thread
 	killDecodeThread=0;
-	thread_handle = StartThread(DecodeThread, DSD_decoder, static_cast<int>(plugin.config->
-								GetInt(playbackConfigGroupGUID, L"priority",
-								THREAD_PRIORITY_HIGHEST)), 0, NULL);
+	thread_handle = StartPlaybackThread(DecodeThread, DSD_decoder, 0, NULL);
 	// set the thread priority
 	if (thread_handle == NULL)
 	{
