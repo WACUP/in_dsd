@@ -53,7 +53,14 @@ void setpan(int pan);
 void __cdecl GetFileExtensions(void);
 
 //------------------------ Connection with plugin
-In_Module plugin = { IN_VER_WACUP,
+
+#define OUR_INPUT_PLUG_IN_FEATURES INPUT_HAS_READ_META | INPUT_USES_UNIFIED_ALT3 | \
+								   INPUT_HAS_FORMAT_CONVERSION_UNICODE | \
+								   INPUT_HAS_FORMAT_CONVERSION_SET_TIME_MODE
+
+In_Module plugin = {
+	IN_VER_WACUP,
+	IN_INIT_PRE_FEATURES
 	(char*)L"Direct Stream Digital Player v" PLUGIN_VERSION,
 	0,	// hMainWindow
 	0,	// hDllInstance
@@ -83,9 +90,7 @@ In_Module plugin = { IN_VER_WACUP,
 	NULL,	// setinfo
 	0,		// out_mod,
 	NULL,	// api_service
-	INPUT_HAS_READ_META | INPUT_USES_UNIFIED_ALT3 |
-	INPUT_HAS_FORMAT_CONVERSION_UNICODE |
-	INPUT_HAS_FORMAT_CONVERSION_SET_TIME_MODE,
+	IN_INIT_POST_FEATURES
 	GetFileExtensions,	// loading optimisation
 	IN_INIT_WACUP_END_STRUCT };//Procedure addresses & parameters
 
@@ -489,8 +494,12 @@ int play(const in_char *fn){
 	plugin.SetInfo((DSD.SampleRate*DSD.Channels)/1000,SAMPLERATE/1000,DSD.Channels,1);
 
 	// initialize visualization stuff
+#ifndef _WIN64
 	plugin.SAVSAInit(maxlatency,SAMPLERATE);
 	plugin.VSASetInfo(SAMPLERATE,DSD.Channels);
+#else
+	plugin.VisInitInfo(maxlatency,SAMPLERATE,DSD.Channels);
+#endif
 
 	// set the output plug-ins default volume.
 	// volume is 0-255, -666 is a token for
