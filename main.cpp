@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.14"
+#define PLUGIN_VERSION L"1.2.15"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -30,7 +30,7 @@
 
 //------------------------ Global constants & parameters
 // post this to the main window at end of file (after playback as stopped)
-#define BPS 24/*/16/**/
+#define BPS 24/*16*/
 int SAMPLERATE=0;
 
 void about(HWND hwndParent);
@@ -67,8 +67,8 @@ In_Module plugin = {
 	0,
 	1,	// is_seekable
 	1,	// uses output
-	NULL/*/config/**/,
-	/*NULL/*/about/**/,
+	NULL/*config*/,
+	about,
 	init,
 	quit,
 	getfileinfo,
@@ -445,21 +445,21 @@ int play(const in_char *fn){
 	decode_pos_ms=0;
 	seek_needed=-1;
 
-	tDSD_decoder* DSD_decoder = new tDSD_decoder();
-	if (!DSD_decoder)return 1;
-
 	// CHANGEME! Write your own file opening code here
 	//f=fopen(fn,"rb");
-	FILE *f = _wfsopen(fn, L"rb", _SH_DENYNO);
-	if(f==0)return 1;
+	FILE* f = _wfsopen(fn, L"rb", _SH_DENYNO);
+	if (f == 0)return 1;
+
+	tDSD_decoder* DSD_decoder = new tDSD_decoder();
+	if (!DSD_decoder)return 1;
 
 	//------------------------ New DSD+Decoder
 	DSD.start(f);
 	//int NCH=DSD.Channels;//Channels
-	if(DSD.SampleRate==0) return 1;//Zero samplerate :)
+	if(DSD.SampleRate==0) { delete DSD_decoder; return 1; }//Zero samplerate :)
 	else if((DSD.SampleRate%44100)==0){SAMPLERATE=44100;DSD_decoder->set_ch_x(DSD.Channels,DSD.SampleRate/44100);}
 	else if((DSD.SampleRate%48000)==0){SAMPLERATE=48000;DSD_decoder->set_ch_x(DSD.Channels,DSD.SampleRate/48000);}
-	else return 1;//
+	else { delete DSD_decoder; return 1; }
 	DSD_decoder->set_LSB_MSB(DSD.LSB_first,DSD.MSB_first);
 
 	//------------------------ Get memory
@@ -486,6 +486,7 @@ int play(const in_char *fn){
 	// system.
 	if (maxlatency < 0){
 		fclose(f);f=0;
+		delete DSD_decoder;
 		return 1;
 	}
 
@@ -514,6 +515,7 @@ int play(const in_char *fn){
 	if (thread_handle == NULL)
 	{
 		fclose(f);f=0;
+		delete DSD_decoder;
 		return -1;
 	}
 	return 0;
