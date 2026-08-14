@@ -11,11 +11,10 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.15"
+#define PLUGIN_VERSION L"1.2.16"
 
 //------------------------ External headers
 #include<Windows.h>
-#include<strsafe.h>
 #include<winamp/in2.h>
 #include"api.h"
 #include<loader/loader/paths.h>
@@ -647,12 +646,12 @@ extern "C" __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t* f
 			// TODO localise
 			//int pID = -1;
 			int ret = 0;
-			if (SameStr(e, L"DSF"))
+			if (!FastCompare(e, L"DSF"))
 			{
 				/*pID = IDS_FAMILY_STRING_DSF;/*/
 				ret = (int)CopyCchStrEx(dest, destlen, L"Sony Direct Stream Digital File Format");/**/
 			}
-			else if (SameStr(e, L"DFF"))
+			else if (!FastCompare(e, L"DFF"))
 			{
 				/*pID = IDS_FAMILY_STRING_DFF;/*/
 				ret = (int)CopyCchStrEx(dest, destlen, L"Phillips Direct Stream Digital File Format");/**/
