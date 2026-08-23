@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.16"
+#define PLUGIN_VERSION L"1.2.17"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -39,15 +39,19 @@ void getfileinfo(const in_char* filename, in_char* title, int* length_in_ms);
 int infoDlg(const in_char* fn, HWND hwnd);
 //int isourfile(const in_char* fn);
 int play(const in_char* fn);
+#ifndef _WIN64
 void pause();
 void unpause();
+#else
+void setpause(const int paused);
+#endif
 int ispaused();
 void stop();
 int getlength();
 int getoutputtime();
 void setoutputtime(int time_in_ms);
-void setvolume(int volume);
-void setpan(int pan);
+void setvolume(const int volume);
+void setpan(const int pan);
 
 void __cdecl GetFileExtensions(void);
 
@@ -74,8 +78,12 @@ In_Module plugin = {
 	0/*infoDlg*/,
 	0/*isourfile*/,
 	play,
+#ifndef _WIN64
 	pause,
 	unpause,
+#else
+	setpause,
+#endif
 	ispaused,
 	stop,
 	getlength,
@@ -103,7 +111,7 @@ volatile int killDecodeThread=0;
 HANDLE thread_handle=NULL;
 
 int decode_pos_ms=0;			// current decoding position, in milliseconds.
-int paused=0;					// are we paused?
+int is_paused=0;				// are we paused?
 volatile int seek_needed=-1;	// if != -1, it is the point that the decode
 
 
@@ -336,7 +344,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 				}
 				Sleep(10);		// give a little CPU time back to the system.
 			}
-			else if (paused) {
+			else if (is_paused) {
 				Sleep(10);
 			}
 			else {
@@ -440,7 +448,7 @@ int play(const in_char *fn){
 	if(debugfile){fprintf(debugfile,"Start Playing\n");fflush(debugfile);}
 #endif
 
-	paused=0;
+	is_paused=0;
 	decode_pos_ms=0;
 	seek_needed=-1;
 
@@ -519,9 +527,13 @@ int play(const in_char *fn){
 	}
 	return 0;
 }
-void pause() { paused=1; if (plugin.outMod) plugin.outMod->Pause(1); }
-void unpause() { paused=0; if (plugin.outMod) plugin.outMod->Pause(0); }
-int ispaused() { return paused; }
+#ifndef _WIN64
+void pause() { is_paused=1; if (plugin.outMod) plugin.outMod->Pause(1); }
+void unpause() { is_paused=0; if (plugin.outMod) plugin.outMod->Pause(0); }
+#else
+void setpause(const int paused) { is_paused=paused; if (plugin.outMod) plugin.outMod->Pause(paused); }
+#endif
+int ispaused() { return is_paused; }
 void stop() {
 	if (thread_handle != NULL)
 	{
@@ -585,7 +597,7 @@ void setoutputtime(int time_in_ms) {
 }
 
 //-------------------------------------------------------------------------- sound processing
-void setvolume(int volume) {
+void setvolume(const int volume) {
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Set Volume %i\n",volume);fflush(debugfile);}
 #endif
@@ -597,7 +609,7 @@ void setvolume(int volume) {
 	//plugin.outMod->SetVolume(255);
 }
 
-void setpan(int pan) {
+void setpan(const int pan) {
 	if (plugin.outMod && plugin.outMod->SetPan)
 	{
 		plugin.outMod->SetPan(pan);
