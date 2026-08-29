@@ -38,11 +38,12 @@ void quit(void);
 void getfileinfo(const in_char* filename, in_char* title, int* length_in_ms);
 int infoDlg(const in_char* fn, HWND hwnd);
 //int isourfile(const in_char* fn);
-int play(const in_char* fn);
 #ifndef _WIN64
+int play(const in_char* fn);
 void pause();
 void unpause();
 #else
+int play(const in_char* fn, const int seek_offset);
 void setpause(const int paused);
 #endif
 int ispaused();
@@ -443,14 +444,22 @@ DWORD WINAPI DecodeThread(LPVOID b)
 }
 
 // called when winamp wants to play a file
+#ifndef _WIN64
 int play(const in_char *fn){
+#else
+int play(const in_char *fn, const int seek_offset){
+#endif
 #ifdef _DEBUG
 	if(debugfile){fprintf(debugfile,"Start Playing\n");fflush(debugfile);}
 #endif
 
 	is_paused=0;
 	decode_pos_ms=0;
+#ifndef _WIN64
 	seek_needed=-1;
+#else
+	seek_needed=seek_offset;
+#endif
 
 	// CHANGEME! Write your own file opening code here
 	//f=fopen(fn,"rb");
