@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.17"
+#define PLUGIN_VERSION L"1.2.18"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -736,7 +736,7 @@ struct ExtendedRead
 	int** decoded_data;
 };
 
-extern "C" __declspec(dllexport) intptr_t winampGetExtendedRead_openW(const wchar_t* fn, int* size, int* bps, int* nch, int* srate)
+extern "C" __declspec(dllexport) intptr_t winampGetExtendedRead_openW(const wchar_t* fn, size_t* size, int* bps, int* nch, int* srate)
 {
 	ExtendedRead* e = new ExtendedRead();
 	if (e)
@@ -782,7 +782,7 @@ extern "C" __declspec(dllexport) intptr_t winampGetExtendedRead_openW(const wcha
 
 				*bps = BPS;
 				*nch = e->parser.Channels;
-				*size = /*-1/*/(int)(e->parser.Samples * (BPS / 8) * e->parser.Channels)/**/;
+				*size = (size_t)(e->parser.Samples * (BPS / 8) * e->parser.Channels);
 				return (intptr_t)e;
 			}
 
