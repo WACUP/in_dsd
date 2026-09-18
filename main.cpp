@@ -50,7 +50,7 @@ int ispaused();
 void stop();
 int getlength();
 int getoutputtime();
-void setoutputtime(int time_in_ms);
+void setoutputtime(const int time_in_ms);
 void setvolume(const int volume);
 void setpan(const int pan);
 
@@ -375,7 +375,6 @@ DWORD WINAPI DecodeThread(LPVOID b)
 #ifdef _DEBUG
 						if (debugfile) { fprintf(debugfile, "VS Add pcm data %i\n", decode_pos_ms); fflush(debugfile); }
 #endif
-						/*plugin.VSAAddPCMData((char*)sample_data, DSD.Channels, BPS, decode_pos_ms);*/
 						// adjust decode position variable
 						decode_pos_samples += 576; //(576*1000)/SAMPLERATE;
 						decode_pos_ms = int((decode_pos_samples * 1000) / SAMPLERATE);
@@ -601,7 +600,7 @@ int getoutputtime() {
 // usually we use it to set seek_needed to the seek
 // point (seek_needed is -1 when no seek is needed)
 // and the decode thread checks seek_needed.
-void setoutputtime(int time_in_ms) {
+void setoutputtime(const int time_in_ms) {
 	seek_needed=time_in_ms;
 }
 
