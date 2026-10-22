@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.18"
+#define PLUGIN_VERSION L"1.2.19"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -493,8 +493,7 @@ int play(const in_char *fn, const int seek_offset){
 	// -1 and -1 are to specify buffer and prebuffer lengths.
 	// -1 means to use the default, which all input plug-ins should
 	// really do.
-	const int maxlatency = (plugin.outMod && plugin.outMod->Open && SAMPLERATE && DSD.Channels ?
-							plugin.outMod->Open(SAMPLERATE, DSD.Channels, BPS, -1, -1) : -1);
+	const int maxlatency = OpenOutputPlugin(&plugin, SAMPLERATE, DSD.Channels, BPS);
 
 	// maxlatency is the maxium latency between a outMod->Write() call and
 	// when you hear those samples. In ms. Used primarily by the visualization
