@@ -11,7 +11,7 @@
 // https://www.oppodigital.com/hra/dsd-by-davidelias.aspx
 ///////////////////////////
 
-#define PLUGIN_VERSION L"1.2.19"
+#define PLUGIN_VERSION L"1.2.20"
 
 //------------------------ External headers
 #include<Windows.h>
@@ -442,6 +442,16 @@ DWORD WINAPI DecodeThread(LPVOID b)
 	return 0;
 }
 
+int StorePlaybackThread(HANDLE thread, LPVOID parameter)
+{
+	if (parameter != nullptr)
+	{
+		thread_handle = thread;
+		return 1;
+	}
+	return 0;
+}
+
 // called when winamp wants to play a file
 #ifndef _WIN64
 int play(const in_char *fn){
@@ -524,9 +534,8 @@ int play(const in_char *fn, const int seek_offset){
 	decode_pos_ms=0;
 	// launch decode thread
 	killDecodeThread=0;
-	thread_handle = StartPlaybackThread(DecodeThread, DSD_decoder, 0, NULL);
-	// set the thread priority
-	if (thread_handle == NULL)
+
+	if (!StartPlaybackThread(DecodeThread, DSD_decoder, 0, StorePlaybackThread))
 	{
 		fclose(f);f=0;
 		delete DSD_decoder;
